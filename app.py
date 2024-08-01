@@ -1,12 +1,12 @@
 import streamlit as st
-import requests
-import json
-from typing import List
 import uuid
+import os
+from src.utils import Utils  # Import Utils directly from your utils.py
 
-# Set the FastAPI backend URL
-BACKEND_URL = "http://localhost:8000"  # Adjust this if your backend is hosted elsewhere
+# Initialize Utils
+utils = Utils()
 
+# Set the Streamlit page configuration
 st.set_page_config(page_title="Document Q&A Chatbot", layout="wide")
 
 # Initialize session state
@@ -31,22 +31,27 @@ with st.sidebar:
     uploaded_file = st.file_uploader("Choose a document to upload", type=["txt", "pdf", "docx"])
     if uploaded_file is not None:
         if st.button("Upload Document"):
-            files = {"file": (uploaded_file.name, uploaded_file.getvalue())}
-            response = requests.post(f"{BACKEND_URL}/upload_doc", files=files)
-            if response.status_code == 200:
+            try:
+                # Save uploaded file temporarily
+                temp_file_path = f"temp_{uploaded_file.name}"
+                with open(temp_file_path, "wb") as buffer:
+                    buffer.write(uploaded_file.getvalue())
+                
+                # Upload the document using Utils
+                result = utils.upload_doc(temp_file_path)
+                os.remove(temp_file_path)  # Clean up temporary file
                 st.success("Document uploaded successfully!")
-            else:
-                st.error(f"Error uploading document: {response.json()['detail']}")
+            except Exception as e:
+                st.error(f"Error uploading document: {e}")
 
     st.header("Select Index")
     # Fetch available indexes
-    response = requests.get(f"{BACKEND_URL}/get_indexes")
-    if response.status_code == 200:
-        indexes: List[str] = response.json()
+    try:
+        indexes = utils.get_all_indexes()
         indexes.insert(0, "")  # Add empty option
         selected_index = st.selectbox("Choose an index", indexes)
-    else:
-        st.error("Failed to fetch indexes")
+    except Exception as e:
+        st.error(f"Failed to fetch indexes: {e}")
         selected_index = ""
 
     # Past Chats header with New Session button
@@ -56,7 +61,7 @@ with st.sidebar:
     with col2:
         if st.button("🔄", help="Start a new session"):
             start_new_session()
-            st.st.rerun()
+            st.rerun()
 
     for session_id, messages in st.session_state.past_sessions.items():
         if st.button(f"Session {session_id[:8]}"):
@@ -85,21 +90,21 @@ if prompt := st.chat_input("What is your question?"):
         "index_name": selected_index
     }
 
-    # Send the question to the backend
+    # Send the question to the backend using Utils methods
     with st.spinner("Thinking..."):
-        response = requests.post(f"{BACKEND_URL}/qa", json=query)
-    
-    if response.status_code == 200:
-        result = response.json()
-        assistant_response = result["response"]
-        st.session_state.messages.append({"role": "assistant", "content": assistant_response})
-        with st.chat_message("assistant"):
-            st.markdown(assistant_response)
-        
-        # Update past sessions
-        st.session_state.past_sessions[st.session_state.session_id] = st.session_state.messages.copy()
-    else:
-        st.error(f"Error: {response.json()['detail']}")
+        try:
+            context = utils.similarity_search(prompt, selected_index)
+            new_query = utils.rephrase(query)
+            response = utils.qa(new_query, context)
+            
+            st.session_state.messages.append({"role": "assistant", "content": response})
+            with st.chat_message("assistant"):
+                st.markdown(response)
+            
+            # Update past sessions
+            st.session_state.past_sessions[st.session_state.session_id] = st.session_state.messages.copy()
+        except Exception as e:
+            st.error(f"Error: {e}")
 
 # Footer
 st.markdown("---")
