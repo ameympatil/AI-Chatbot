@@ -4,3 +4,4 @@ conv/
 .env
 *.ipynb
 faiss_index/
+__pycache__/
