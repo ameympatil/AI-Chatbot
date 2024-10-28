@@ -10,6 +10,10 @@ utils = Utils()
 
 
 class Query(BaseModel):
+    """
+    Represents a query with an ID, the query string, and the index name.
+    """
+
     id: str
     query: str
     index_name: str
@@ -17,11 +21,17 @@ class Query(BaseModel):
 
 @app.get("/")
 async def root():
+    """
+    Handles the root endpoint, returning a simple message.
+    """
     return {"message": "Hello World"}
 
 
 @app.post("/upload_doc")
 async def upload_document(file: UploadFile = File(...)):
+    """
+    Handles the upload of a document, saving it temporarily, processing it, and removing the temporary file.
+    """
     try:
         # Save the uploaded file temporarily
         temp_file_path = f"temp_{file.filename}"
@@ -43,6 +53,9 @@ async def upload_document(file: UploadFile = File(...)):
 
 @app.get("/get_indexes", response_model=List[str])
 async def get_indexes():
+    """
+    Retrieves all available indexes.
+    """
     try:
         indexes = utils.get_all_indexes()
         return indexes
@@ -52,6 +65,9 @@ async def get_indexes():
 
 @app.post("/qa")
 async def question_answering(query: Query):
+    """
+    Handles question answering based on a given query.
+    """
     try:
         context = utils.similarity_search(query.query, query.index_name)
         new_query = utils.rephrase({"id": query.id, "query": query.query})
@@ -71,6 +87,9 @@ async def question_answering(query: Query):
 
 @app.get("/get_convs")
 async def get_conv(id: str):
+    """
+    Retrieves a conversation history based on the given ID.
+    """
     try:
         conv = utils.get_all_convs()
         return conv
