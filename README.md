@@ -62,6 +62,9 @@ AI-Chatbot is a smart question-and-answer application that provides intelligent 
 
 3. Open your web browser and navigate to `http://localhost:8501` to access the application.
 
+4. Test the API
+   Use the Swagger UI at `http://localhost:8000/docs` to test the API endpoints.
+
 ### Interacting with the Chatbot
 - Upload a document using the provided interface.
 - Ask questions related to the content of the uploaded document.
